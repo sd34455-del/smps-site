@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>계산기</title>
+  <style>
+    :root {
+      --bg: #eef1f6;
+      --card: #ffffff;
+      --text: #1c2330;
+      --muted: #6b7486;
+      --key: #f1f3f7;
+      --key-sub: #dfe4ee;
+      --accent: #3563e9;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #12151c;
+        --card: #1c212b;
+        --text: #eef1f7;
+        --muted: #929bad;
+        --key: #272d3a;
+        --key-sub: #353d4e;
+        --accent: #4f7bff;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      width: 100%;
+      max-width: 960px;
+    }
+
+    .calculator { max-width: 360px; }
+
+    .excel { min-width: 0; }
+
+    h2 { font-size: 1.1rem; margin-bottom: 12px; }
+
+    input[type="file"] { max-width: 100%; font: inherit; }
+
+    .status {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      overflow-wrap: anywhere;
+    }
+
+    .status.error { color: #e5484d; }
+
+    .table-wrap {
+      margin-top: 12px;
+      max-height: 70vh;
+      overflow: auto;
+    }
+
+    table { border-collapse: collapse; font-size: 0.9rem; }
+
+    th, td {
+      border: 1px solid var(--key-sub);
+      padding: 6px 10px;
+      max-width: 320px;
+      vertical-align: top;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    td { min-width: 60px; }
+    td.number { text-align: right; white-space: nowrap; }
+    th { background: var(--key); color: var(--muted); font-weight: 600; }
+    thead th { position: sticky; top: 0; }
+
+    .calculator, .excel {
+      width: 100%;
+      background: var(--card);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+    }
+
+    h1 { font-size: 1.1rem; margin-bottom: 12px; }
+
+    .display {
+      text-align: right;
+      padding: 8px 4px 16px;
+    }
+
+    .expression {
+      min-height: 1.4em;
+      color: var(--muted);
+      font-size: 0.95rem;
+      overflow-wrap: anywhere;
+    }
+
+    .result {
+      display: block;
+      min-height: 1.3em;
+      font-size: 2.6rem;
+      font-weight: 600;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
+    .result.long { font-size: 1.7rem; }
+
+    .keys {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      height: 60px;
+      border: none;
+      border-radius: 16px;
+      background: var(--key);
+      color: var(--text);
+      font: inherit;
+      font-size: 1.35rem;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    button:hover { filter: brightness(0.95); }
+    button:active { transform: scale(0.96); }
+    button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+    .sub { background: var(--key-sub); }
+    .op, .equals { background: var(--accent); color: #fff; }
+    .zero { grid-column: span 2; }
+
+    .hint {
+      margin-top: 12px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <!-- 기능을 추가할 때는 이 아래에 새 <section>을 넣으세요. -->
+    <section class="calculator" aria-labelledby="calc-title">
+      <h1 id="calc-title">계산기</h1>
+
+      <div class="display">
+        <div class="expression" id="expression"></div>
+        <output class="result" id="result" aria-live="polite">0</output>
+      </div>
+
+      <div class="keys" id="keys">
+        <button type="button" class="sub" data-action="clear" aria-label="모두 지우기">C</button>
+        <button type="button" class="sub" data-action="backspace" aria-label="한 글자 지우기">⌫</button>
+        <button type="button" class="sub" data-action="percent" aria-label="퍼센트">%</button>
+        <button type="button" class="op" data-op="÷" aria-label="나누기">÷</button>
+
+        <button type="button" data-digit="7">7</button>
+        <button type="button" data-digit="8">8</button>
+        <button type="button" data-digit="9">9</button>
+        <button type="button" class="op" data-op="×" aria-label="곱하기">×</button>
+
+        <button type="button" data-digit="4">4</button>
+        <button type="button" data-digit="5">5</button>
+        <button type="button" data-digit="6">6</button>
+        <button type="button" class="op" data-op="−" aria-label="빼기">−</button>
+
+        <button type="button" data-digit="1">1</button>
+        <button type="button" data-digit="2">2</button>
+        <button type="button" data-digit="3">3</button>
+        <button type="button" class="op" data-op="+" aria-label="더하기">+</button>
+
+        <button type="button" data-action="sign" aria-label="부호 바꾸기">±</button>
+        <button type="button" data-digit="0">0</button>
+        <button type="button" data-action="dot" aria-label="소수점">.</button>
+        <button type="button" class="equals" data-action="equals" aria-label="계산하기">=</button>
+      </div>
+
+      <p class="hint">키보드: 숫자, + - * /, %, Enter, Backspace, Esc</p>
+    </section>
+
+    <section class="excel" id="excel" aria-labelledby="excel-title">
+      <h2 id="excel-title">엑셀 첫 번째 시트 보기</h2>
+      <input type="file" id="excel-file" accept=".xlsx,.xlsm" aria-label="엑셀 파일 선택">
+      <p class="status" id="excel-status" aria-live="polite">.xlsx 파일을 선택하세요. 파일은 이 브라우저 안에서만 읽습니다.</p>
+      <div class="table-wrap" id="excel-table" tabindex="0" hidden></div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const MAX_DIGITS = 15;
+      const expressionEl = document.getElementById("expression");
+      const resultEl = document.getElementById("result");
+
+      let tokens;   // 입력이 끝난 숫자와 연산자: ["12", "+", "3", "×"]
+      let current;  // 입력 중인 숫자 문자열. 연산자 직후에는 null
+      let fresh;    // true면 다음 숫자 입력이 current를 덮어씀
+      let history;  // "=" 직후에 보여 줄 계산식
+      let error;    // 오류 메시지
+
+      function reset() {
+        tokens = [];
+        current = "0";
+        fresh = false;
+        history = "";
+        error = "";
+      }
+
+      // 곱셈·나눗셈을 먼저 처리한 뒤 덧셈·뺄셈을 처리
+      function evaluate(list) {
+        const terms = [Number(list[0])];
+        for (let i = 1; i < list.length; i += 2) {
+          const op = list[i];
+          const n = Number(list[i + 1]);
+          if (op === "×") terms.push(terms.pop() * n);
+          else if (op === "÷") terms.push(terms.pop() / n);
+          else terms.push(op === "−" ? -n : n);
+        }
+        return terms.reduce((sum, n) => sum + n, 0);
+      }
+
+      // 부동소수점 오차 정리 (0.1 + 0.2 → 0.3)
+      function clean(n) {
+        return String(Number(n.toPrecision(MAX_DIGITS)));
+      }
+
+      // 정수 부분에 천 단위 쉼표 추가
+      function format(value) {
+        if (value.includes("e")) return value;
+        const [int, dec] = value.split(".");
+        const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return dec === undefined ? grouped : grouped + "." + dec;
+      }
+
+      function formatTokens(list) {
+        return list.map((t, i) => (i % 2 ? t : format(t))).join(" ");
+      }
+
+      // 계산 결과를 이어 쓰지 않고 새로 입력을 시작
+      function startNewEntry() {
+        if (fresh) current = null;
+        fresh = false;
+        history = "";
+      }
+
+      function inputDigit(d) {
+        startNewEntry();
+        if (current === null || current === "0") current = d;
+        else if (current === "-0") current = "-" + d;
+        else if (current.replace(/\D/g, "").length < MAX_DIGITS) current += d;
+      }
+
+      function inputDot() {
+        startNewEntry();
+        if (current === null) current = "0.";
+        else if (!current.includes(".") && !current.includes("e")) current += ".";
+      }
+
+      function inputOperator(op) {
+        if (current === null) {
+          tokens[tokens.length - 1] = op; // 연산자 교체
+        } else {
+          tokens.push(current, op);
+          current = null;
+        }
+        fresh = false;
+        history = "";
+      }
+
+      function equals() {
+        if (tokens.length === 0) return;
+        const list = current === null ? tokens.slice(0, -1) : [...tokens, current];
+        const value = evaluate(list);
+        if (!Number.isFinite(value)) {
+          reset();
+          error = "계산할 수 없습니다";
+          return;
+        }
+        history = formatTokens(list) + " =";
+        tokens = [];
+        current = clean(value);
+        fresh = true;
+      }
+
+      // 200 + 10% → 200 + 20,  200 × 10% → 200 × 0.1
+      function percent() {
+        if (current === null) return;
+        const op = tokens[tokens.length - 1];
+        let value = Number(current) / 100;
+        if (op === "+" || op === "−") value *= evaluate(tokens.slice(0, -1));
+        if (!Number.isFinite(value)) return;
+        current = clean(value);
+        fresh = true;
+        history = "";
+      }
+
+      function toggleSign() {
+        if (current === null) current = "-0";
+        else current = current.startsWith("-") ? current.slice(1) : "-" + current;
+        history = "";
+      }
+
+      function backspace() {
+        history = "";
+        if (fresh) return;
+        if (current === null) {
+          tokens.pop();
+          current = tokens.pop();
+          return;
+        }
+        current = current.slice(0, -1);
+        if (current === "" || current === "-") current = tokens.length ? null : "0";
+      }
+
+      const actions = {
+        clear: reset,
+        backspace,
+        percent,
+        equals,
+        sign: toggleSign,
+        dot: inputDot,
+      };
+
+      function render() {
+        const shown = current !== null ? current : tokens[tokens.length - 2];
+        resultEl.textContent = error || format(shown);
+        resultEl.classList.toggle("long", resultEl.textContent.length > 12);
+        expressionEl.textContent = history || formatTokens(tokens);
+      }
+
+      function press(button) {
+        const { digit, op, action } = button.dataset;
+        if (error) reset();
+        if (digit !== undefined) inputDigit(digit);
+        else if (op) inputOperator(op);
+        else actions[action]();
+        render();
+      }
+
+      const keys = document.getElementById("keys");
+
+      keys.addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (button) press(button);
+      });
+
+      const keyMap = {
+        "+": '[data-op="+"]',
+        "-": '[data-op="−"]',
+        "*": '[data-op="×"]',
+        "/": '[data-op="÷"]',
+        "%": '[data-action="percent"]',
+        ".": '[data-action="dot"]',
+        ",": '[data-action="dot"]',
+        "=": '[data-action="equals"]',
+        Enter: '[data-action="equals"]',
+        Backspace: '[data-action="backspace"]',
+        Escape: '[data-action="clear"]',
+        Delete: '[data-action="clear"]',
+      };
+
+      document.addEventListener("keydown", (event) => {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.target.closest?.("#excel")) return; // 파일 선택 영역의 키 입력은 제외
+        const selector = /^\d$/.test(event.key)
+          ? `[data-digit="${event.key}"]`
+          : keyMap[event.key];
+        if (!selector) return;
+        event.preventDefault(); // Enter가 포커스된 버튼을 또 누르는 것을 방지
+        press(keys.querySelector(selector));
+      });
+
+      reset();
+      render();
+    })();
+  </script>
+
+  <script>
+    // 엑셀(.xlsx) 파일은 XML 파일들을 묶은 ZIP이므로 외부 라이브러리 없이 읽는다.
+    (() => {
+      "use strict";
+
+      const MAX_ROWS = 1000;
+      const fileInput = document.getElementById("excel-file");
+      const statusEl = document.getElementById("excel-status");
+      const tableEl = document.getElementById("excel-table");
+      let latest = 0; // 마지막에 선택한 파일만 화면에 표시
+
+      // 사용자에게 그대로 보여 줄 수 있는 오류
+      class ExcelError extends Error {}
+
+      function checkSignature(bytes) {
+        const head = String.fromCharCode(...bytes.subarray(0, 16));
+        if (head.startsWith("PK")) return;
+        if (head.startsWith("BMS DocuRay")) {
+          throw new ExcelError("문서보안(DRM)으로 암호화된 파일이라 읽을 수 없습니다. 사내 절차에 따라 보안이 해제된 파일을 선택해 주세요.");
+        }
+        if (head.startsWith("\xD0\xCF\x11\xE0")) {
+          throw new ExcelError("암호가 걸렸거나 예전 형식(.xls)인 파일입니다. 암호 없이 .xlsx로 저장한 뒤 선택해 주세요.");
+        }
+        throw new ExcelError("올바른 .xlsx 파일이 아니거나 암호화된 파일입니다.");
+      }
+
+      // ZIP의 파일 목록을 읽고, 이름으로 내용을 꺼내는 함수를 돌려준다.
+      function openZip(bytes) {
+        const view = new DataView(bytes.buffer);
+        let end = bytes.length - 22;
+        while (end >= 0 && view.getUint32(end, true) !== 0x06054b50) end--;
+        if (end < 0) throw new ExcelError("파일이 손상되어 열 수 없습니다.");
+
+        const entries = new Map();
+        const count = view.getUint16(end + 10, true);
+        let pos = view.getUint32(end + 16, true);
+        for (let i = 0; i < count; i++) {
+          const nameLength = view.getUint16(pos + 28, true);
+          const name = new TextDecoder().decode(bytes.subarray(pos + 46, pos + 46 + nameLength));
+          entries.set(name.toLowerCase(), {
+            method: view.getUint16(pos + 10, true),
+            size: view.getUint32(pos + 20, true),
+            offset: view.getUint32(pos + 42, true),
+          });
+          pos += 46 + nameLength + view.getUint16(pos + 30, true) + view.getUint16(pos + 32, true);
+        }
+
+        // 해당 파일이 없으면 null
+        return async function readXml(path) {
+          const entry = entries.get(path.toLowerCase());
+          if (!entry) return null;
+          const start = entry.offset + 30
+            + view.getUint16(entry.offset + 26, true)
+            + view.getUint16(entry.offset + 28, true);
+          let blob = new Blob([bytes.subarray(start, start + entry.size)]);
+          if (entry.method === 8) {
+            const stream = blob.stream().pipeThrough(new DecompressionStream("deflate-raw"));
+            blob = await new Response(stream).blob();
+          } else if (entry.method !== 0) {
+            throw new ExcelError("지원하지 않는 압축 방식의 파일입니다.");
+          }
+          return new DOMParser().parseFromString(await blob.text(), "application/xml");
+        };
+      }
+
+      const all = (node, name) => (node ? [...node.getElementsByTagNameNS("*", name)] : []);
+
+      // 서식이 나뉜 문자열을 합친다. 윗주(rPh)는 제외
+      const textOf = (node) => all(node, "t")
+        .filter((t) => t.parentNode.localName !== "rPh")
+        .map((t) => t.textContent)
+        .join("");
+
+      // 셀 스타일 번호 → 표시 형식
+      function readFormats(styles) {
+        const custom = new Map(all(styles, "numFmt")
+          .map((f) => [Number(f.getAttribute("numFmtId")), f.getAttribute("formatCode")]));
+        const builtin = {
+          3: "#,##0", 4: "#,##0.00", 9: "0%", 10: "0.00%",
+          14: "yyyy-mm-dd", 15: "yyyy-mm-dd", 16: "yyyy-mm-dd", 17: "yyyy-mm-dd",
+          18: "h:mm", 19: "h:mm:ss", 20: "h:mm", 21: "h:mm:ss", 22: "yyyy-mm-dd h:mm",
+          37: "#,##0", 38: "#,##0", 39: "#,##0.00", 40: "#,##0.00",
+          41: "#,##0", 42: "#,##0", 43: "#,##0.00", 44: "#,##0.00",
+          45: "mm:ss", 46: "h:mm:ss", 47: "mm:ss",
+        };
+        // 한국어 Excel의 기본 날짜 형식
+        for (const id of [27, 28, 29, 30, 31, 36, 50, 51, 52, 53, 54, 57, 58]) builtin[id] = "yyyy-mm-dd";
+
+        const cellXfs = all(styles, "cellXfs")[0];
+        return all(cellXfs, "xf").map((xf) => {
+          const id = Number(xf.getAttribute("numFmtId"));
+          return custom.get(id) ?? builtin[id] ?? "";
+        });
+      }
+
+      function formatDate(serial, code, date1904) {
+        const days = serial + (date1904 ? 1462 : 0);
+        const iso = new Date(Math.round((days - 25569) * 86400) * 1000).toISOString();
+        const hasDate = /[yd]/i.test(code) || !/[hs]/i.test(code);
+        const hasTime = /[hs]/i.test(code);
+        return [hasDate && iso.slice(0, 10), hasTime && iso.slice(11, 19)].filter(Boolean).join(" ");
+      }
+
+      function formatNumber(value, format, date1904) {
+        // 따옴표 문자, [색상] 등을 제거하고 양수용 형식만 확인
+        const code = format.replace(/"[^"]*"|\[[^\]]*\]|[\\_*]./g, "").split(";")[0];
+        if (/[ymdhs]/i.test(code) && value >= 0 && value < 2958466) {
+          return formatDate(value, code, date1904);
+        }
+        const percent = code.includes("%");
+        if (!percent && !code.includes(",")) return String(Number(value.toPrecision(15)));
+        const decimals = (code.match(/\.(0+)/)?.[1] ?? "").length;
+        const text = (percent ? value * 100 : value).toLocaleString("ko-KR", {
+          useGrouping: code.includes(","),
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        });
+        return percent ? text + "%" : text;
+      }
+
+      // "AB12" → 28 (1부터 시작하는 열 번호)
+      function columnNumber(ref) {
+        let n = 0;
+        for (const ch of ref.match(/^[A-Z]+/)[0]) n = n * 26 + ch.charCodeAt(0) - 64;
+        return n;
+      }
+
+      function columnName(n) {
+        let name = "";
+        for (; n > 0; n = Math.floor((n - 1) / 26)) {
+          name = String.fromCharCode(65 + ((n - 1) % 26)) + name;
+        }
+        return name;
+      }
+
+      async function readFirstSheet(buffer) {
+        const bytes = new Uint8Array(buffer);
+        checkSignature(bytes);
+        const readXml = openZip(bytes);
+
+        const workbook = await readXml("xl/workbook.xml");
+        const sheet = all(workbook, "sheet")[0];
+        if (!sheet) throw new ExcelError("엑셀 통합 문서에서 시트를 찾을 수 없습니다.");
+
+        const relId = [...sheet.attributes].find((a) => a.localName === "id" && a.namespaceURI).value;
+        const rels = await readXml("xl/_rels/workbook.xml.rels");
+        const target = all(rels, "Relationship")
+          .find((r) => r.getAttribute("Id") === relId)
+          .getAttribute("Target");
+        const sheetXml = await readXml(target.startsWith("/") ? target.slice(1) : "xl/" + target);
+        if (!sheetXml) throw new ExcelError("첫 번째 시트의 내용을 찾을 수 없습니다.");
+
+        const strings = all(await readXml("xl/sharedStrings.xml"), "si").map(textOf);
+        const formats = readFormats(await readXml("xl/styles.xml"));
+        const date1904 = ["1", "true"].includes(all(workbook, "workbookPr")[0]?.getAttribute("date1904"));
+
+        const rows = []; // 값이 있는 행만 저장
+        let rowNumber = 0;
+        let firstColumn = Infinity;
+        let lastColumn = 0;
+
+        for (const row of all(sheetXml, "row")) {
+          rowNumber = Number(row.getAttribute("r")) || rowNumber + 1;
+          const cells = new Map();
+          let column = 0;
+
+          for (const cell of all(row, "c")) {
+            const ref = cell.getAttribute("r");
+            column = ref ? columnNumber(ref) : column + 1;
+            const type = cell.getAttribute("t") || "n";
+            const raw = all(cell, "v")[0]?.textContent ?? "";
+            let text = raw;
+            let number = false;
+
+            if (type === "inlineStr") text = textOf(cell);
+            else if (raw === "") continue;
+            else if (type === "s") text = strings[Number(raw)] ?? "";
+            else if (type === "b") text = raw === "1" ? "TRUE" : "FALSE";
+            else if (type === "n") {
+              text = formatNumber(Number(raw), formats[Number(cell.getAttribute("s"))] ?? "", date1904);
+              number = true;
+            }
+
+            if (text === "") continue;
+            cells.set(column, { text, number });
+            firstColumn = Math.min(firstColumn, column);
+            lastColumn = Math.max(lastColumn, column);
+          }
+
+          if (cells.size) rows.push({ rowNumber, cells });
+        }
+
+        return { name: sheet.getAttribute("name"), rows, firstColumn, lastColumn };
+      }
+
+      function buildTable({ rows, firstColumn, lastColumn }) {
+        const table = document.createElement("table");
+        const addCell = (tr, tag, text) => {
+          const cell = tr.appendChild(document.createElement(tag));
+          cell.textContent = text; // HTML로 해석하지 않음
+          return cell;
+        };
+
+        const head = table.createTHead().insertRow();
+        addCell(head, "th", "행");
+        for (let c = firstColumn; c <= lastColumn; c++) addCell(head, "th", columnName(c));
+
+        const body = table.createTBody();
+        for (const { rowNumber, cells } of rows.slice(0, MAX_ROWS)) {
+          const tr = body.insertRow();
+          addCell(tr, "th", rowNumber);
+          for (let c = firstColumn; c <= lastColumn; c++) {
+            const value = cells.get(c);
+            const td = addCell(tr, "td", value?.text ?? "");
+            if (value?.number) td.className = "number";
+          }
+        }
+        return table;
+      }
+
+      function showStatus(message, isError = false) {
+        statusEl.textContent = message;
+        statusEl.classList.toggle("error", isError);
+      }
+
+      async function load(file) {
+        const request = ++latest;
+        tableEl.hidden = true;
+        tableEl.replaceChildren();
+        showStatus(`${file.name} 읽는 중…`);
+
+        try {
+          const sheet = await readFirstSheet(await file.arrayBuffer());
+          if (request !== latest) return;
+          const total = sheet.rows.length;
+          if (total === 0) {
+            showStatus(`${file.name} · 시트 "${sheet.name}"에 표시할 내용이 없습니다.`);
+            return;
+          }
+          tableEl.appendChild(buildTable(sheet));
+          tableEl.hidden = false;
+          tableEl.scrollTo(0, 0);
+          const limit = total > MAX_ROWS ? ` (처음 ${MAX_ROWS}행만 표시)` : "";
+          showStatus(`${file.name} · 시트 "${sheet.name}" · ${total}행${limit}`);
+        } catch (e) {
+          if (request !== latest) return;
+          console.error(e);
+          showStatus(e instanceof ExcelError ? e.message : "파일을 읽는 중 오류가 발생했습니다. 파일이 손상되지 않았는지 확인해 주세요.", true);
+        }
+      }
+
+      // 같은 파일을 다시 선택해도 change 이벤트가 발생하도록 비움
+      fileInput.addEventListener("click", () => { fileInput.value = ""; });
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files[0]) load(fileInput.files[0]);
+      });
+    })();
+  </script>
+</body>
+</html>
